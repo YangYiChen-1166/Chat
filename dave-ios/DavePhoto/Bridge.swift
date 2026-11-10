@@ -36,6 +36,9 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     private let endpoint = URL(string: "wss://dave-photo.yyc1166.ccwu.cc/ws")!
 
     func start() {
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("--offline-preview") { connection = "离线预览"; return }
+        #endif
         guard socket == nil else { return }
         let session = URLSession(configuration: .default)
         let task = session.webSocketTask(with: endpoint); task.maximumMessageSize = 16 * 1024 * 1024

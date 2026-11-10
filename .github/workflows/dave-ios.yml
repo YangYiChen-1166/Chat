@@ -37,7 +37,7 @@ jobs:
           xcrun simctl boot "$DEVICE" || true
           xcrun simctl bootstatus "$DEVICE" -b
           xcrun simctl install "$DEVICE" sim-build/Build/Products/Debug-iphonesimulator/DavePhoto.app
-          xcrun simctl launch "$DEVICE" com.example.davephoto
+          xcrun simctl launch "$DEVICE" com.example.davephoto --offline-preview
           sleep 8
           xcrun simctl io "$DEVICE" screenshot simulator.png
       - uses: actions/upload-artifact@v4

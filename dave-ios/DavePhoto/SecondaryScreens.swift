@@ -97,6 +97,7 @@ struct FaceScreen: View {
             }.navigationTitle("人脸筛选").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
                 .confirmationDialog("移除电脑端保存的 LocalFace 密钥？", isPresented: $showClear) { Button("移除", role: .destructive) { Task { _ = await model.command("face-clear") } }; Button("取消", role: .cancel) {} }
+                .alert("提示", isPresented: Binding(get: { model.error != nil || model.notice != nil }, set: { if !$0 { model.error = nil; model.notice = nil } })) { Button("好", role: .cancel) { model.error = nil; model.notice = nil } } message: { Text(model.error ?? model.notice ?? "") }
                 .sheet(item: $itemPreview) { item in NavigationStack { VStack { if let image = previewImage { Image(uiImage: image).resizable().scaledToFit() } else { ProgressView() } }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(item.name).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { itemPreview = nil; previewImage = nil } } } } }
         }
     }

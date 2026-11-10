@@ -47,4 +47,30 @@ jobs:
           name: DavePhoto-simulator
           path: dave-ios/simulator.png
           if-no-files-found: ignore
+  ipad-validation:
+    runs-on: macos-26
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build and test on iPad simulator
+        working-directory: dave-ios
+        run: |
+          xcodegen generate
+          xcodebuild -project DavePhoto.xcodeproj -scheme DavePhoto -configuration Debug -sdk iphonesimulator -derivedDataPath ipad-build CODE_SIGNING_ALLOWED=NO build
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPad") and x["isAvailable"]))')
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" ipad-build/Build/Products/Debug-iphonesimulator/DavePhoto.app
+          xcrun simctl launch "$DEVICE" com.example.davephoto --mock-fixture
+          sleep 8
+          xcrun simctl io "$DEVICE" screenshot ipad.png
+          xcodebuild test -project DavePhoto.xcodeproj -scheme DavePhoto -destination "id=$DEVICE" -derivedDataPath ipad-build -only-testing:DavePhotoUITests CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DavePhoto-ipad-simulator
+          path: dave-ios/ipad.png
+          if-no-files-found: ignore
 

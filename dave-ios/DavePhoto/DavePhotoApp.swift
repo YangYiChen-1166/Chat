@@ -122,7 +122,7 @@ struct PhotoGrid: View {
                             Button { preview = item; Task { await model.showPreview(item) } } label: {
                                 Group { if let image = model.thumbnails[item.id] { Image(uiImage: image).resizable().scaledToFill() } else { Rectangle().fill(Color(.secondarySystemBackground)).overlay { Image(systemName: "photo").foregroundStyle(.secondary) } } }
                                     .frame(height: 130).frame(maxWidth: .infinity).clipped().clipShape(RoundedRectangle(cornerRadius: 10))
-                            }.buttonStyle(.plain)
+                            }.buttonStyle(.plain).accessibilityLabel("预览 \(item.name)").accessibilityIdentifier("preview-photo-\(item.id)")
                             Button { if model.selected.contains(item.id) { model.selected.remove(item.id) } else { model.selected.insert(item.id) } } label: { Image(systemName: model.selected.contains(item.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(model.selected.contains(item.id) ? Color.accentColor : .white).shadow(radius: 2) }.padding(8).accessibilityLabel(model.selected.contains(item.id) ? "取消选择 \(item.name)" : "选择 \(item.name)").accessibilityIdentifier("select-photo-\(item.id)")
                         }
                         Text(item.name).font(.caption).lineLimit(2)
@@ -141,15 +141,19 @@ struct SettingsScreen: View {
     @Environment(\.dismiss) private var dismiss
     @State private var folder = ""
     @State private var editFolder = false
+    @State private var resetAlbum = false
     var body: some View {
         NavigationStack {
             List {
                 Section("电脑端保存位置") { Text(model.state?.folder ?? "未连接").textSelection(.enabled); Button("修改电脑端文件夹") { folder = model.state?.folder ?? ""; editFolder = true } }
                 Section("设备预览缓存") { Text("已使用 \(model.cacheSize / 1024 / 1024) MB，上限 128 MB"); Button("清理设备缓存", role: .destructive) { model.clearCache() }.disabled(model.caching) }
+                Section("相册状态") { Button("重置已读取相册", role: .destructive) { resetAlbum = true }.disabled(model.state?.busy == true) }
                 Section("任务记录") { if let log = model.state?.log, !log.isEmpty { ForEach(Array(log.enumerated()), id: \.offset) { _, line in Text(line).font(.footnote).textSelection(.enabled) } } else { Text("暂无记录").foregroundStyle(.secondary) } }
                 Section("连接说明") { Text("应用使用现有的大卫照片远程连接。电脑端需要保持运行，当前远程入口按现有配置开放访问。") }
             }.navigationTitle("设置").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
                 .alert("修改电脑端文件夹", isPresented: $editFolder) { TextField("电脑上的绝对路径", text: $folder); Button("保存") { let value = folder; Task { _ = await model.command("set-folder", body: ["folder": value]) } }; Button("取消", role: .cancel) {} } message: { Text("请输入电脑上已经存在的本地文件夹路径。") }
+                .confirmationDialog("重置后，电脑端及其他连接设备上的当前相册与筛选结果也会清空。", isPresented: $resetAlbum) { Button("重置", role: .destructive) { Task { _ = await model.command("reset"); await model.refreshTargets() } }; Button("取消", role: .cancel) {} }
+                .alert("提示", isPresented: Binding(get: { model.error != nil || model.notice != nil }, set: { if !$0 { model.error = nil; model.notice = nil } })) { Button("好", role: .cancel) { model.error = nil; model.notice = nil } } message: { Text(model.error ?? model.notice ?? "") }
         }
     }
 }

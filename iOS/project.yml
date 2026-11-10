@@ -1,0 +1,20 @@
+name: MinimalChat
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  MinimalChat:
+    type: application
+    platform: iOS
+    sources: [MinimalChat]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.minimalchat
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: 极简聊天
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: 用于录制语音消息。
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: 用于选择聊天图片。
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1"
+

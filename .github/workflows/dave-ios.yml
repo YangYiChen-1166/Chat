@@ -40,7 +40,7 @@ jobs:
           xcrun simctl launch "$DEVICE" com.example.davephoto --mock-fixture
           sleep 8
           xcrun simctl io "$DEVICE" screenshot simulator.png
-          xcodebuild test -project DavePhoto.xcodeproj -scheme DavePhoto -destination "id=$DEVICE" -derivedDataPath sim-build -only-testing:DavePhotoUITests CODE_SIGNING_ALLOWED=NO
+          xcodebuild test -project DavePhoto.xcodeproj -scheme DavePhoto -destination "id=$DEVICE" -derivedDataPath sim-build -only-testing:DavePhotoTests -only-testing:DavePhotoUITests CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -66,7 +66,7 @@ jobs:
           xcrun simctl launch "$DEVICE" com.example.davephoto --mock-fixture
           sleep 8
           xcrun simctl io "$DEVICE" screenshot ipad.png
-          xcodebuild test -project DavePhoto.xcodeproj -scheme DavePhoto -destination "id=$DEVICE" -derivedDataPath ipad-build -only-testing:DavePhotoUITests CODE_SIGNING_ALLOWED=NO
+          xcodebuild test -project DavePhoto.xcodeproj -scheme DavePhoto -destination "id=$DEVICE" -derivedDataPath ipad-build -only-testing:DavePhotoTests -only-testing:DavePhotoUITests CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -26,6 +26,7 @@ struct WorkbenchRoot: View {
     @State private var allowSmall = false
     @State private var confirmingComputerSave = false
     @State private var confirmingDeviceSave = false
+    @State private var confirmingShare = false
     var blocked: Bool { !bridge.connected || bridge.connection == "电脑端离线" || model.state == nil || model.state?.busy == true || model.submitting }
     var body: some View {
         NavigationStack {
@@ -41,6 +42,7 @@ struct WorkbenchRoot: View {
                         Toggle("允许保存小尺寸预览", isOn: $allowSmall)
                         Button { confirmingComputerSave = true } label: { Label("保存到电脑", systemImage: "desktopcomputer") }.disabled(blocked || model.selectedPhotos.isEmpty)
                         Button { confirmingDeviceSave = true } label: { Label("保存到此设备的照片", systemImage: "square.and.arrow.down") }.disabled(blocked || model.selectedPhotos.isEmpty || model.saving)
+                        Button { confirmingShare = true } label: { Label("存到文件或分享", systemImage: "square.and.arrow.up") }.disabled(blocked || model.selectedPhotos.isEmpty || model.saving)
                         if model.saving { HStack { ProgressView(); Text(model.savingStatus) }.font(.footnote) }
                         if model.caching {
                             HStack { ProgressView(); Text(model.cacheStatus); Spacer(); Button("停止") { model.cancelCaching() } }.font(.footnote)
@@ -58,9 +60,14 @@ struct WorkbenchRoot: View {
             .alert("读取喔图相册", isPresented: $showingWotu) { TextField("相册链接", text: $wotu).textInputAutocapitalization(.never).autocorrectionDisabled(); Button("读取") { let link = wotu; Task { _ = await model.command("wotu-scan", body: ["url": link]) } }; Button("取消", role: .cancel) {} } message: { Text("请输入喔图相册链接。") }
             .confirmationDialog("将 \(model.selectedPhotos.count) 张照片保存到电脑？", isPresented: $confirmingComputerSave) { Button("保存到电脑") { Task { _ = await model.command("export", body: ["ids": model.selectedPhotos.map(\.id), "allowSmall": allowSmall, "faceFilter": false, "facePerson": ""]) } }; Button("取消", role: .cancel) {} }
             .confirmationDialog("将 \(model.selectedPhotos.count) 张照片保存到此设备？", isPresented: $confirmingDeviceSave) { Button("保存到照片") { Task { await model.saveSelectedToPhotos(allowSmall: allowSmall) } }; Button("取消", role: .cancel) {} }
+            .confirmationDialog("准备 \(model.selectedPhotos.count) 张照片用于分享？", isPresented: $confirmingShare) { Button("继续") { Task { await model.prepareShare(allowSmall: allowSmall) } }; Button("取消", role: .cancel) {} }
             .sheet(isPresented: $showingMini) { if let id = model.selectedTarget { MiniWindow(model: model, targetID: id) } }
             .sheet(isPresented: $showingFaces) { FaceScreen(model: model, allowSmall: allowSmall) }
             .sheet(isPresented: $showingSettings) { SettingsScreen(model: model) }
+            .sheet(item: $model.shareBundle) { bundle in
+                ActivitySheet(files: bundle.files) { model.removeShareFiles(bundle) }
+                    .onDisappear { model.removeShareFiles(bundle) }
+            }
         }
     }
     private var sourceSection: some View {
@@ -106,6 +113,17 @@ struct WorkbenchRoot: View {
             }.font(.subheadline)
         }
     }
+}
+
+struct ActivitySheet: UIViewControllerRepresentable {
+    let files: [URL]
+    let finished: () -> Void
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: files, applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in finished() }
+        return controller
+    }
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }
 
 struct PhotoGrid: View {

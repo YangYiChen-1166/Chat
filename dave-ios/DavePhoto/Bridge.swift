@@ -39,6 +39,7 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     private var mockFaceScan = false
     private var mockPreview = false
     private let mockImage = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXsAAAAASUVORK5CYII=")!
+    func enableMockForTests() { mockMode = true; connected = true; connection = "电脑端已连接" }
     #endif
 
     func start() {
@@ -137,6 +138,8 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
             let items: [[String: Any]] = cursor == 0 ? [["id": 1, "name": "示例照片1.jpg", "group": "target", "thumbnail": mockImage.base64EncodedString(), "reviewable": true]] : []
             return try json(["items": items, "next": 1, "done": true])
         case "face-preview": return try json(["image": mockImage.base64EncodedString()])
+        case "device-original":
+            return try json(["total": mockImage.count, "data": mockImage.base64EncodedString(), "extension": ".png", "width": 1200, "height": 800])
         default: return try json(["ok": true])
         }
     }

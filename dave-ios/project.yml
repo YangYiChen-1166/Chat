@@ -9,7 +9,7 @@ targets:
     platform: iOS
     sources: [DavePhoto]
     scheme:
-      testTargets: [DavePhotoUITests]
+      testTargets: [DavePhotoTests, DavePhotoUITests]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto
@@ -29,6 +29,17 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
+  DavePhotoTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [DavePhotoTests]
+    dependencies:
+      - target: DavePhoto
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto.tests
         GENERATE_INFOPLIST_FILE: YES
         SWIFT_VERSION: "5.0"
 

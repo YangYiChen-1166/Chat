@@ -3,6 +3,8 @@ import Photos
 import UIKit
 import ImageIO
 
+struct ShareBundle: Identifiable { let id = UUID(); let directory: URL; let files: [URL] }
+
 @MainActor final class Workbench: ObservableObject {
     let bridge = PhotoBridge()
     @Published var state: WorkState?
@@ -19,6 +21,7 @@ import ImageIO
     @Published var faceItems: [Int: FaceItem] = [:]
     @Published var saving = false
     @Published var savingStatus = ""
+    @Published var shareBundle: ShareBundle?
     @Published var caching = false
     @Published var cacheStatus = ""
     @Published var cacheSize = 0
@@ -204,14 +207,7 @@ import ImageIO
         for (index, item) in items.enumerated() {
             savingStatus = "正在保存 \(index + 1) / \(items.count)"
             do {
-                var data = Data(), total: Int?, ext = "jpg"
-                repeat {
-                    guard state?.libraryGeneration == generation else { throw BridgeError(message: "相册已变化") }
-                    let part = try await bridge.decode(OriginalChunk.self, "device-original", body: ["id": item.id, "generation": generation, "offset": data.count, "allowSmall": allowSmall], timeout: 120)
-                    guard part.total > 0, part.total <= 40 * 1024 * 1024, total == nil || total == part.total, let chunk = Data(base64Encoded: part.data), !chunk.isEmpty, data.count + chunk.count <= part.total else { throw BridgeError(message: "图片传输不完整") }
-                    total = part.total; ext = part.extension.trimmingCharacters(in: CharacterSet(charactersIn: ".")); data.append(chunk)
-                } while data.count < (total ?? 0)
-                guard ["jpg", "png", "webp", "bmp"].contains(ext) else { throw BridgeError(message: "图片格式不受支持") }
+                let (data, ext) = try await fetchOriginal(item, generation: generation, allowSmall: allowSmall)
                 let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString).appendingPathExtension(ext)
                 try data.write(to: file, options: .atomic)
                 defer { try? FileManager.default.removeItem(at: file) }
@@ -226,5 +222,36 @@ import ImageIO
         savingStatus = ""
         notice = "已保存 \(ok) / \(items.count) 张。" + (failed.isEmpty ? "" : "\n" + failed.prefix(5).joined(separator: "\n"))
     }
+    private func fetchOriginal(_ item: PhotoItem, generation: Int, allowSmall: Bool) async throws -> (Data, String) {
+        var data = Data(), total: Int?, ext = "jpg"
+        repeat {
+            guard state?.libraryGeneration == generation else { throw BridgeError(message: "相册已变化") }
+            let part = try await bridge.decode(OriginalChunk.self, "device-original", body: ["id": item.id, "generation": generation, "offset": data.count, "allowSmall": allowSmall], timeout: 120)
+            guard part.total > 0, part.total <= 40 * 1024 * 1024, total == nil || total == part.total, let chunk = Data(base64Encoded: part.data), !chunk.isEmpty, data.count + chunk.count <= part.total else { throw BridgeError(message: "图片传输不完整") }
+            total = part.total; ext = part.extension.trimmingCharacters(in: CharacterSet(charactersIn: ".")); data.append(chunk)
+        } while data.count < (total ?? 0)
+        guard ["jpg", "png", "webp", "bmp"].contains(ext) else { throw BridgeError(message: "图片格式不受支持") }
+        return (data, ext)
+    }
+    func prepareShare(allowSmall: Bool) async {
+        guard !saving, let generation = state?.libraryGeneration else { return }
+        let items = selectedPhotos; guard !items.isEmpty else { error = "请先选择照片。"; return }
+        saving = true; defer { saving = false; savingStatus = "" }
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("DaveShare-" + UUID().uuidString, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            var files: [URL] = [], totalBytes = 0
+            for (index, item) in items.enumerated() {
+                savingStatus = "正在准备 \(index + 1) / \(items.count)"
+                let (data, ext) = try await fetchOriginal(item, generation: generation, allowSmall: allowSmall)
+                totalBytes += data.count
+                guard totalBytes <= 128 * 1024 * 1024 else { throw BridgeError(message: "本次分享超过 128 MB，请分批选择。") }
+                let file = folder.appendingPathComponent("照片-\(index + 1)").appendingPathExtension(ext)
+                try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); files.append(file)
+            }
+            shareBundle = ShareBundle(directory: folder, files: files)
+        } catch { try? FileManager.default.removeItem(at: folder); self.error = error.localizedDescription }
+    }
+    func removeShareFiles(_ bundle: ShareBundle) { try? FileManager.default.removeItem(at: bundle.directory) }
 }
 

@@ -47,5 +47,31 @@ jobs:
           name: Simulator-screenshot
           path: iOS/simulator.png
           if-no-files-found: ignore
+  ipad-validation:
+    runs-on: macos-26
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Build iPad simulator app
+        working-directory: iOS
+        run: |
+          xcodegen generate
+          xcodebuild -project MinimalChat.xcodeproj -scheme MinimalChat -configuration Debug -sdk iphonesimulator -derivedDataPath ipad-build CODE_SIGNING_ALLOWED=NO build
+      - name: Launch on iPad simulator
+        working-directory: iOS
+        run: |
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPad") and x["isAvailable"]))')
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" ipad-build/Build/Products/Debug-iphonesimulator/MinimalChat.app
+          xcrun simctl launch "$DEVICE" com.example.minimalchat
+          sleep 5
+          xcrun simctl io "$DEVICE" screenshot ipad-simulator.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iPad-simulator-screenshot
+          path: iOS/ipad-simulator.png
 
 

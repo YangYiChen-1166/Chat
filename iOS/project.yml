@@ -20,7 +20,7 @@ targets:
         INFOPLIST_KEY_NSMicrophoneUsageDescription: 用于录制语音消息。
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: 用于选择聊天图片。
         SWIFT_VERSION: "5.0"
-        TARGETED_DEVICE_FAMILY: "1"
+        TARGETED_DEVICE_FAMILY: "1,2"
   MinimalChatUITests:
     type: bundle.ui-testing
     platform: iOS

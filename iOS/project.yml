@@ -13,6 +13,7 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.minimalchat
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         INFOPLIST_KEY_CFBundleDisplayName: 极简聊天
         INFOPLIST_KEY_NSMicrophoneUsageDescription: 用于录制语音消息。
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: 用于选择聊天图片。

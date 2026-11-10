@@ -15,6 +15,7 @@ final class DavePhotoTests: XCTestCase {
         let expected = try XCTUnwrap(Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXsAAAAASUVORK5CYII="))
         XCTAssertEqual(try Data(contentsOf: bundle.files[0]), expected)
         XCTAssertEqual(bundle.files[0].pathExtension, "png")
+        XCTAssertEqual(bundle.files[0].lastPathComponent, "示例照片1.png")
     }
 
     @MainActor func testSyntheticPreviewCacheCanBeLoadedAndCleared() async throws {

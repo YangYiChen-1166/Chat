@@ -240,13 +240,20 @@ struct ShareBundle: Identifiable { let id = UUID(); let directory: URL; let file
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("DaveShare-" + UUID().uuidString, isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-            var files: [URL] = [], totalBytes = 0
+            var files: [URL] = [], totalBytes = 0, usedNames: Set<String> = []
             for (index, item) in items.enumerated() {
                 savingStatus = "正在准备 \(index + 1) / \(items.count)"
                 let (data, ext) = try await fetchOriginal(item, generation: generation, allowSmall: allowSmall)
                 totalBytes += data.count
                 guard totalBytes <= 128 * 1024 * 1024 else { throw BridgeError(message: "本次分享超过 128 MB，请分批选择。") }
-                let file = folder.appendingPathComponent("照片-\(index + 1)").appendingPathExtension(ext)
+                let forbidden = CharacterSet(charactersIn: "/\\:").union(.controlCharacters)
+                let clean = item.name.components(separatedBy: forbidden).joined(separator: "_")
+                let rawStem = (clean as NSString).deletingPathExtension.trimmingCharacters(in: .whitespacesAndNewlines)
+                let stem = String((rawStem.isEmpty ? "照片" : rawStem).prefix(100))
+                var name = "\(stem).\(ext)", suffix = 2
+                while usedNames.contains(name.lowercased()) { name = "\(stem)-\(suffix).\(ext)"; suffix += 1 }
+                usedNames.insert(name.lowercased())
+                let file = folder.appendingPathComponent(name)
                 try data.write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); files.append(file)
             }
             shareBundle = ShareBundle(directory: folder, files: files)

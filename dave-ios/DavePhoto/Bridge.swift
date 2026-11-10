@@ -16,7 +16,12 @@ struct WorkState: Decodable {
     let people: [PhotoPerson]; let photos: [PhotoItem]; let faceConfigured: Bool; let facePeople: [FacePerson]
     let faceScan: FaceScan?; let preview: PreviewInfo?; let preload: PreloadInfo?; let log: [String]
 }
-struct FaceItem: Decodable, Identifiable { let id: Int; let name: String; let group: String; let error: String?; let thumbnail: String?; let reviewable: Bool }
+struct FaceMatchPerson: Decodable { let id: String?; let name: String? }
+struct FaceMatch: Decodable { let person: FaceMatchPerson?; let box: [Double]?; let similarity: Double? }
+struct FaceItem: Decodable, Identifiable {
+    let id: Int; let name: String; let group: String; let error: String?; let thumbnail: String?; let reviewable: Bool
+    let width: Int?; let height: Int?; let faces: [FaceMatch]?
+}
 struct FaceResultPage: Decodable { let items: [FaceItem]; let next: Int; let done: Bool }
 struct ThumbItem: Decodable { let id: Int; let thumbnail: String?; let error: String? }
 struct ThumbPage: Decodable { let items: [ThumbItem] }
@@ -139,7 +144,7 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
         case "face-results":
             let cursor = body?["cursor"] as? Int ?? 0
             let hasEvent = cursor == 0 || (cursor == 1 && mockFaceReviewed)
-            let items: [[String: Any]] = hasEvent ? [["id": 1, "name": "示例照片1.jpg", "group": cursor == 0 ? "target" : mockFaceGroup, "thumbnail": mockImage.base64EncodedString(), "reviewable": true]] : []
+            let items: [[String: Any]] = hasEvent ? [["id": 1, "name": "示例照片1.jpg", "group": cursor == 0 ? "target" : mockFaceGroup, "thumbnail": mockImage.base64EncodedString(), "reviewable": true, "width": 1200, "height": 800, "faces": [["person": ["id": "demo", "name": "示例人物"], "box": [200, 100, 400, 400], "similarity": 0.95]]]] : []
             return try json(["items": items, "next": cursor + items.count, "done": true])
         case "face-review": mockFaceGroup = body?["group"] as? String ?? "review"; mockFaceReviewed = true; return try json(["ok": true])
         case "face-preview": return try json(["image": mockImage.base64EncodedString()])

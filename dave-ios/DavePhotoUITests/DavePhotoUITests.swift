@@ -48,6 +48,10 @@ final class DavePhotoUITests: XCTestCase {
         XCTAssertTrue(person.waitForExistence(timeout: 10)); person.tap()
         let start = app.buttons["start-face"]
         XCTAssertTrue(start.waitForExistence(timeout: 10)); start.tap()
+        let facePreview = app.buttons["preview-face-1"]
+        XCTAssertTrue(facePreview.waitForExistence(timeout: 20)); facePreview.tap()
+        XCTAssertTrue(app.staticTexts["示例人物 · 0.95"].waitForExistence(timeout: 20))
+        app.buttons["完成"].tap()
         let review = app.buttons["review-face-1"]
         XCTAssertTrue(review.waitForExistence(timeout: 20)); review.tap()
         let other = app.buttons["归为非目标"]

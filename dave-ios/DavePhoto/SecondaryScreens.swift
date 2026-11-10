@@ -98,7 +98,7 @@ struct FaceScreen: View {
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
                 .confirmationDialog("移除电脑端保存的 LocalFace 密钥？", isPresented: $showClear) { Button("移除", role: .destructive) { Task { _ = await model.command("face-clear") } }; Button("取消", role: .cancel) {} }
                 .alert("提示", isPresented: Binding(get: { model.error != nil || model.notice != nil }, set: { if !$0 { model.error = nil; model.notice = nil } })) { Button("好", role: .cancel) { model.error = nil; model.notice = nil } } message: { Text(model.error ?? model.notice ?? "") }
-                .sheet(item: $itemPreview) { item in NavigationStack { VStack { if let image = previewImage { Image(uiImage: image).resizable().scaledToFit() } else { ProgressView() } }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(item.name).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { itemPreview = nil; previewImage = nil } } } } }
+                .sheet(item: $itemPreview) { item in NavigationStack { VStack { if let image = previewImage { FaceAnnotatedImage(image: image, item: item, targetID: person) } else { ProgressView() } }.frame(maxWidth: .infinity, maxHeight: .infinity).navigationTitle(item.name).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { itemPreview = nil; previewImage = nil } } } } }
         }
     }
     func groupName(_ group: String) -> String { switch group { case "target": return "目标"; case "review": return "待复核"; case "other": return "非目标"; default: return "失败" } }
@@ -127,7 +127,7 @@ struct FaceScreen: View {
                         if let message = item.error, !message.isEmpty { Text(message).font(.caption).foregroundStyle(.secondary) }
                     }
                 }
-            }.buttonStyle(.plain)
+            }.buttonStyle(.plain).accessibilityLabel("预览识别结果 \(item.name)").accessibilityIdentifier("preview-face-\(item.id)")
             Spacer()
             if item.reviewable {
                 Menu {
@@ -143,6 +143,41 @@ struct FaceScreen: View {
         struct Result: Decodable { let image: String }
         do { let value = try await model.bridge.decode(Result.self, "face-preview", body: ["run": scan.run, "id": item.id]); if let data = Data(base64Encoded: value.image) { previewImage = UIImage(data: data) } }
         catch { model.error = error.localizedDescription; itemPreview = nil }
+    }
+}
+
+struct FaceAnnotatedImage: View {
+    let image: UIImage
+    let item: FaceItem
+    let targetID: String
+    var body: some View {
+        GeometryReader { geometry in
+            let imageWidth = CGFloat(max(item.width ?? Int(image.size.width), 1))
+            let imageHeight = CGFloat(max(item.height ?? Int(image.size.height), 1))
+            let scale = min(geometry.size.width / imageWidth, geometry.size.height / imageHeight)
+            let drawnWidth = imageWidth * scale, drawnHeight = imageHeight * scale
+            let left = (geometry.size.width - drawnWidth) / 2, top = (geometry.size.height - drawnHeight) / 2
+            ZStack(alignment: .topLeading) {
+                Image(uiImage: image).resizable().scaledToFit().frame(width: geometry.size.width, height: geometry.size.height)
+                ForEach(Array((item.faces ?? []).enumerated()), id: \.offset) { _, face in
+                    if let box = face.box, box.count == 4, box[2] > 0, box[3] > 0 {
+                        let color: Color = face.person?.id == targetID ? .green : .orange
+                        let width = CGFloat(box[2]) * scale, height = CGFloat(box[3]) * scale
+                        Rectangle().stroke(color, lineWidth: 2).frame(width: width, height: height)
+                            .overlay(alignment: .topLeading) {
+                                Text(faceLabel(face)).font(.caption2).foregroundStyle(.white).padding(3).background(color)
+                                    .fixedSize(horizontal: true, vertical: false)
+                            }
+                            .position(x: left + (CGFloat(box[0]) + CGFloat(box[2]) / 2) * scale, y: top + (CGFloat(box[1]) + CGFloat(box[3]) / 2) * scale)
+                    }
+                }
+            }
+        }.padding()
+    }
+    private func faceLabel(_ face: FaceMatch) -> String {
+        let name = face.person?.name ?? "未知"
+        if let score = face.similarity { return name + " · " + String(format: "%.2f", score) }
+        return name
     }
 }
 

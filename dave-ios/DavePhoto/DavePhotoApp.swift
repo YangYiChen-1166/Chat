@@ -66,7 +66,6 @@ struct WorkbenchRoot: View {
             .sheet(isPresented: $showingSettings) { SettingsScreen(model: model) }
             .sheet(item: $model.shareBundle) { bundle in
                 ActivitySheet(files: bundle.files) { model.removeShareFiles(bundle) }
-                    .onDisappear { model.removeShareFiles(bundle) }
             }
         }
     }

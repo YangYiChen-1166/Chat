@@ -34,10 +34,17 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     private var timeouts: [String: Task<Void, Never>] = [:]
     private var generation = UUID()
     private let endpoint = URL(string: "wss://dave-photo.yyc1166.ccwu.cc/ws")!
+    #if DEBUG
+    private var mockMode = false
+    private var mockFaceScan = false
+    private var mockPreview = false
+    private let mockImage = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXsAAAAASUVORK5CYII=")!
+    #endif
 
     func start() {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("--offline-preview") { connection = "离线预览"; return }
+        if ProcessInfo.processInfo.arguments.contains("--mock-fixture") { mockMode = true; connected = true; connection = "电脑端已连接"; return }
         #endif
         guard socket == nil else { return }
         let session = URLSession(configuration: .default)
@@ -84,6 +91,9 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
         for (_, continuation) in all { continuation.resume(throwing: BridgeError(message: message)) }
     }
     func request(_ path: String, body: [String: Any]? = nil, timeout: UInt64 = 35) async throws -> Data {
+        #if DEBUG
+        if mockMode { return try mockResponse(path, body: body) }
+        #endif
         guard connected, let socket else { throw BridgeError(message: "远程连接尚未就绪") }
         let id = UUID().uuidString
         let message: [String: Any] = ["type": "request", "id": id, "path": "/api/" + path, "method": body == nil ? "GET" : "POST", "body": body ?? [:]]
@@ -105,5 +115,31 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     func decode<T: Decodable>(_ type: T.Type, _ path: String, body: [String: Any]? = nil, timeout: UInt64 = 35) async throws -> T {
         try JSONDecoder().decode(type, from: await request(path, body: body, timeout: timeout))
     }
+    #if DEBUG
+    private func mockResponse(_ path: String, body: [String: Any]?) throws -> Data {
+        func json(_ value: Any) throws -> Data { try JSONSerialization.data(withJSONObject: value) }
+        switch path {
+        case "state":
+            let photos: [[String: Any]] = (1...3).map { ["id": $0, "cacheKey": "mock-\($0)", "name": "示例照片\($0).jpg", "album": "示例分类", "width": 1200, "height": 800] }
+            var value: [String: Any] = ["busy": false, "readingAlbum": false, "canStop": false, "targetId": 1, "status": "示例相册已连接", "folder": "C:\\Photos", "person": "示例目录", "libraryGeneration": 1, "people": [["key": "示例目录", "count": 3]], "photos": photos, "faceConfigured": true, "facePeople": [["id": "demo", "name": "示例人物", "samples": 2]], "preload": ["active": false, "total": 3, "done": 3, "failed": 0], "log": []]
+            if mockPreview { value["preview"] = ["revision": "mock", "name": "示例照片1.jpg", "width": 1200, "height": 800, "small": false] }
+            if mockFaceScan { value["faceScan"] = ["run": "demo-run", "total": 1, "processed": 1, "matched": 1, "unmatched": 0, "review": 0, "failed": 0, "done": true] }
+            return try json(value)
+        case "targets": return try json([["id": 1, "title": "示例电脑窗口"]])
+        case "image", "cached-preview", "mini-frame": return mockImage
+        case "preview": mockPreview = true; return try json(["ok": true])
+        case "face-thumbnails":
+            let ids = body?["ids"] as? [Int] ?? []
+            return try json(["items": ids.map { ["id": $0, "thumbnail": mockImage.base64EncodedString()] as [String: Any] }])
+        case "face-scan": mockFaceScan = true; return try json(["run": "demo-run"])
+        case "face-results":
+            let cursor = body?["cursor"] as? Int ?? 0
+            let items: [[String: Any]] = cursor == 0 ? [["id": 1, "name": "示例照片1.jpg", "group": "target", "thumbnail": mockImage.base64EncodedString(), "reviewable": true]] : []
+            return try json(["items": items, "next": 1, "done": true])
+        case "face-preview": return try json(["image": mockImage.base64EncodedString()])
+        default: return try json(["ok": true])
+        }
+    }
+    #endif
 }
 

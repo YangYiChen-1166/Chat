@@ -8,6 +8,8 @@ targets:
     type: application
     platform: iOS
     sources: [DavePhoto]
+    scheme:
+      testTargets: [DavePhotoUITests]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto
@@ -18,4 +20,15 @@ targets:
         INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: 将选中的照片保存到照片图库。
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1,2"
+  DavePhotoUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [DavePhotoUITests]
+    dependencies:
+      - target: DavePhoto
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
 

@@ -123,7 +123,7 @@ struct PhotoGrid: View {
                                 Group { if let image = model.thumbnails[item.id] { Image(uiImage: image).resizable().scaledToFill() } else { Rectangle().fill(Color(.secondarySystemBackground)).overlay { Image(systemName: "photo").foregroundStyle(.secondary) } } }
                                     .frame(height: 130).frame(maxWidth: .infinity).clipped().clipShape(RoundedRectangle(cornerRadius: 10))
                             }.buttonStyle(.plain)
-                            Button { if model.selected.contains(item.id) { model.selected.remove(item.id) } else { model.selected.insert(item.id) } } label: { Image(systemName: model.selected.contains(item.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(model.selected.contains(item.id) ? Color.accentColor : .white).shadow(radius: 2) }.padding(8).accessibilityLabel(model.selected.contains(item.id) ? "取消选择 \(item.name)" : "选择 \(item.name)")
+                            Button { if model.selected.contains(item.id) { model.selected.remove(item.id) } else { model.selected.insert(item.id) } } label: { Image(systemName: model.selected.contains(item.id) ? "checkmark.circle.fill" : "circle").font(.title2).foregroundStyle(model.selected.contains(item.id) ? Color.accentColor : .white).shadow(radius: 2) }.padding(8).accessibilityLabel(model.selected.contains(item.id) ? "取消选择 \(item.name)" : "选择 \(item.name)").accessibilityIdentifier("select-photo-\(item.id)")
                         }
                         Text(item.name).font(.caption).lineLimit(2)
                     }.task { model.loadThumbnail(item) }

@@ -18,8 +18,17 @@ async function constantEqual(a,b) {
 }
 async function body(req) {
   if (Number(req.headers.get('content-length') || 0) > 16384) fail('请求过大', 413);
-  const text = await req.text();
-  if (text.length > 16384) fail('请求过大', 413);
+  if (!req.body) fail('请求格式错误');
+  const reader = req.body.getReader(), chunks = []; let size = 0;
+  for (;;) {
+    const {done, value} = await reader.read(); if (done) break;
+    size += value.byteLength;
+    if (size > 16384) { await reader.cancel(); fail('请求过大', 413); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  const text = new TextDecoder().decode(bytes);
   try { const value = JSON.parse(text); if (!value || typeof value !== 'object' || Array.isArray(value)) throw 0; return value; }
   catch { fail('请求格式错误'); }
 }
@@ -55,6 +64,7 @@ async function route(req, env) {
     await limit(env, 'auth:'+ip, 30, 900);
     const input = await body(req), username = typeof input.username === 'string' ? input.username.trim() : '', password = input.password;
     if (!USERNAME.test(username) || typeof password !== 'string' || password.length < 10 || password.length > 128) fail('用户名需为 3–24 位字母、数字或下划线；密码需为 10–128 位');
+    await limit(env, 'auth-user:'+username.toLowerCase(), 20, 900);
     if (path === '/register') {
       const salt=random(16), id=crypto.randomUUID(), digest=await passwordHash(password,salt);
       try { await env.DB.prepare('INSERT INTO users(id,username,password_hash,password_salt,created_at) VALUES(?,?,?,?,?)').bind(id,username,digest,salt,Date.now()).run(); }

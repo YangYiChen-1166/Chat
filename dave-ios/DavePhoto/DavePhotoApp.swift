@@ -26,18 +26,18 @@ struct WorkbenchRoot: View {
     @State private var allowSmall = false
     @State private var confirmingComputerSave = false
     @State private var confirmingDeviceSave = false
-    var blocked: Bool { !bridge.connected || model.state == nil || model.state?.busy == true || model.submitting }
+    var blocked: Bool { !bridge.connected || bridge.connection == "电脑端离线" || model.state == nil || model.state?.busy == true || model.submitting }
     var body: some View {
         NavigationStack {
             List {
                 Section {
                     HStack { Circle().fill(bridge.connection == "电脑端已连接" ? .green : .orange).frame(width: 8, height: 8); Text(bridge.connection); Spacer(); if model.state?.busy == true { ProgressView() } }
                     if let state = model.state { Text(state.status).font(.footnote).foregroundStyle(.secondary); if state.canStop { Button("停止当前任务", role: .destructive) { Task { _ = await model.command("cancel") } } } }
-                } footer: { Text("读取微信相册需要电脑开机、联网，并运行大卫照片工作台。") }
+                } footer: { Text("读取微信相册需要电脑开机、联网，并运行大卫照片工作台。当前远程入口为开放访问，知道网址的人可操作电脑端工作台。") }
                 sourceSection
                 if let state = model.state {
                     photoSection(state)
-                    Section("保存与筛选") {
+                    Section {
                         Toggle("允许保存小尺寸预览", isOn: $allowSmall)
                         Button { confirmingComputerSave = true } label: { Label("保存到电脑", systemImage: "desktopcomputer") }.disabled(blocked || model.selectedPhotos.isEmpty)
                         Button { confirmingDeviceSave = true } label: { Label("保存到此设备的照片", systemImage: "square.and.arrow.down") }.disabled(blocked || model.selectedPhotos.isEmpty || model.saving)
@@ -48,7 +48,7 @@ struct WorkbenchRoot: View {
                             Button { model.beginCaching() } label: { Label("预加载照片到此设备", systemImage: "arrow.down.circle") }.disabled(blocked || state.photos.isEmpty)
                         }
                         Button { showingFaces = true } label: { Label("LocalFace 人脸筛选与交接", systemImage: "person.crop.rectangle.stack") }.disabled(!bridge.connected)
-                    } footer: { Text("电脑端保存到：\(state.folder)\n照片可能是小尺寸或带水印的预览，不保证是原片。") }
+                    } header: { Text("保存与筛选") } footer: { Text("电脑端保存到：\(state.folder)\n照片可能是小尺寸或带水印的预览，不保证是原片。") }
                 }
             }
             .navigationTitle("大卫照片")

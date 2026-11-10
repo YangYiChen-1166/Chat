@@ -89,11 +89,11 @@ struct FaceScreen: View {
                     }
                 }
                 faceGroups
-                Section("交给 LocalFace 录入") {
+                Section {
                     Picker("传输质量", selection: $quality) { Text("快速录入").tag("fast"); Text("原尺寸").tag("original") }
                     Picker("识别模型", selection: $recognitionModel) { Text("FaceRes").tag("faceres"); Text("SFace").tag("sface") }
                     Button("发送已选照片到 LocalFace") { Task { busy = true; defer { busy = false }; if let url = await model.handoff(person: person, fast: quality == "fast", model: recognitionModel) { openURL(url) } } }.disabled(person.isEmpty || model.selectedPhotos.isEmpty || model.state?.busy == true || busy)
-                } footer: { Text("每次最多交接 50 张，打开 LocalFace 后继续处理。") }
+                } header: { Text("交给 LocalFace 录入") } footer: { Text("每次最多交接 50 张，打开 LocalFace 后继续处理。") }
             }.navigationTitle("人脸筛选").navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
                 .confirmationDialog("移除电脑端保存的 LocalFace 密钥？", isPresented: $showClear) { Button("移除", role: .destructive) { Task { _ = await model.command("face-clear") } }; Button("取消", role: .cancel) {} }

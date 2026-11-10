@@ -40,6 +40,7 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     private var mockPreview = false
     private let mockImage = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXsAAAAASUVORK5CYII=")!
     func enableMockForTests() { mockMode = true; connected = true; connection = "电脑端已连接" }
+    var isMockForTests: Bool { mockMode }
     #endif
 
     func start() {

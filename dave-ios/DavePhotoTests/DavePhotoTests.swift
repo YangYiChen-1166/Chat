@@ -2,6 +2,25 @@ import XCTest
 @testable import DavePhoto
 
 final class DavePhotoTests: XCTestCase {
+    @MainActor func testLiveBridgeCanReadStateWithoutChangingAlbum() async throws {
+        let bridge = PhotoBridge()
+        bridge.start()
+        defer { bridge.stop() }
+        XCTAssertFalse(bridge.isMockForTests, "The read-only integration check must use the actual WebSocket transport")
+        for _ in 0..<30 {
+            if bridge.connected { break }
+            try await Task.sleep(nanoseconds: 1_000_000_000)
+        }
+        guard bridge.connected else { throw XCTSkip("Live workstation unavailable for read-only integration check") }
+        do {
+            let state = try await bridge.decode(WorkState.self, "state")
+            let targets = try await bridge.decode([PhotoTarget].self, "targets")
+            XCTAssertGreaterThanOrEqual(state.libraryGeneration, 0)
+            XCTAssertGreaterThanOrEqual(targets.count, 0)
+        } catch let problem as BridgeError where problem.message.contains("离线") {
+            throw XCTSkip("Desktop workstation is offline")
+        }
+    }
     @MainActor func testOriginalPhotoIsPreparedForSharingWithoutChangingBytes() async throws {
         let model = Workbench()
         model.bridge.enableMockForTests()

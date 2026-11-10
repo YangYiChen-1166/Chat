@@ -22,5 +22,37 @@ final class DavePhotoUITests: XCTestCase {
         app.buttons["完成"].tap()
         XCTAssertTrue(app.buttons["已选 1"].waitForExistence(timeout: 10))
     }
+    @MainActor func testRemoteWindowAndFaceReviewWithSyntheticData() throws {
+        continueAfterFailure = false
+        let app = XCUIApplication()
+        app.launchArguments = ["--mock-fixture"]
+        app.launch()
+        XCTAssertTrue(app.staticTexts["示例相册已连接"].waitForExistence(timeout: 60))
+        let mini = app.buttons["open-mini"]
+        XCTAssertTrue(mini.waitForExistence(timeout: 20)); mini.tap()
+        XCTAssertTrue(app.staticTexts["点击画面操作；滑动或使用按钮滚动。"].waitForExistence(timeout: 20))
+        let scroll = app.buttons["向下"]
+        XCTAssertTrue(scroll.waitForExistence(timeout: 20)); scroll.tap()
+        app.buttons["关闭"].tap()
+        let browse = app.staticTexts["浏览照片"]
+        XCTAssertTrue(browse.waitForExistence(timeout: 20)); browse.tap()
+        let selection = app.buttons["select-photo-1"]
+        XCTAssertTrue(selection.waitForExistence(timeout: 20)); selection.tap()
+        app.navigationBars.buttons.element(boundBy: 0).tap()
+        let face = app.buttons["open-face"]
+        if !face.isHittable { app.swipeUp() }
+        XCTAssertTrue(face.waitForExistence(timeout: 20)); face.tap()
+        let picker = app.descendants(matching: .any).matching(identifier: "face-person").firstMatch
+        XCTAssertTrue(picker.waitForExistence(timeout: 20)); picker.tap()
+        let person = app.staticTexts["示例人物 · 2 个样本"]
+        XCTAssertTrue(person.waitForExistence(timeout: 10)); person.tap()
+        let start = app.buttons["start-face"]
+        XCTAssertTrue(start.waitForExistence(timeout: 10)); start.tap()
+        let review = app.buttons["review-face-1"]
+        XCTAssertTrue(review.waitForExistence(timeout: 20)); review.tap()
+        let other = app.buttons["归为非目标"]
+        XCTAssertTrue(other.waitForExistence(timeout: 10)); other.tap()
+        XCTAssertTrue(app.staticTexts["非目标 · 1"].waitForExistence(timeout: 20))
+    }
 }
 

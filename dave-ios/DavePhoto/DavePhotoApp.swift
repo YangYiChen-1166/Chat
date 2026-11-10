@@ -49,7 +49,7 @@ struct WorkbenchRoot: View {
                         } else {
                             Button { model.beginCaching() } label: { Label("预加载照片到此设备", systemImage: "arrow.down.circle") }.disabled(blocked || state.photos.isEmpty)
                         }
-                        Button { showingFaces = true } label: { Label("LocalFace 人脸筛选与交接", systemImage: "person.crop.rectangle.stack") }.disabled(!bridge.connected)
+                        Button { showingFaces = true } label: { Label("LocalFace 人脸筛选与交接", systemImage: "person.crop.rectangle.stack") }.disabled(!bridge.connected).accessibilityIdentifier("open-face")
                     } header: { Text("保存与筛选") } footer: { Text("电脑端保存到：\(state.folder)\n照片可能是小尺寸或带水印的预览，不保证是原片。") }
                 }
             }
@@ -86,7 +86,7 @@ struct WorkbenchRoot: View {
                 Spacer()
                 Button("使用上次缓存") { Task { await model.scan(useCache: true) } }.disabled(blocked || model.selectedTarget == nil)
             }
-            Button { showingMini = true } label: { Label("远程操作小程序", systemImage: "rectangle.on.rectangle") }.disabled(blocked || model.selectedTarget == nil)
+            Button { showingMini = true } label: { Label("远程操作小程序", systemImage: "rectangle.on.rectangle") }.disabled(blocked || model.selectedTarget == nil).accessibilityIdentifier("open-mini")
             Button { showingWotu = true } label: { Label("读取喔图相册", systemImage: "link") }.disabled(blocked)
         }
     }

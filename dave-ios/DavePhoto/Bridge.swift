@@ -37,6 +37,8 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
     #if DEBUG
     private var mockMode = false
     private var mockFaceScan = false
+    private var mockFaceGroup = "target"
+    private var mockFaceReviewed = false
     private var mockPreview = false
     private let mockImage = Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/aXsAAAAASUVORK5CYII=")!
     func enableMockForTests() { mockMode = true; connected = true; connection = "电脑端已连接" }
@@ -133,11 +135,13 @@ struct BridgeError: LocalizedError { let message: String; var errorDescription: 
         case "face-thumbnails":
             let ids = body?["ids"] as? [Int] ?? []
             return try json(["items": ids.map { ["id": $0, "thumbnail": mockImage.base64EncodedString()] as [String: Any] }])
-        case "face-scan": mockFaceScan = true; return try json(["run": "demo-run"])
+        case "face-scan": mockFaceScan = true; mockFaceGroup = "target"; mockFaceReviewed = false; return try json(["run": "demo-run"])
         case "face-results":
             let cursor = body?["cursor"] as? Int ?? 0
-            let items: [[String: Any]] = cursor == 0 ? [["id": 1, "name": "示例照片1.jpg", "group": "target", "thumbnail": mockImage.base64EncodedString(), "reviewable": true]] : []
-            return try json(["items": items, "next": 1, "done": true])
+            let hasEvent = cursor == 0 || (cursor == 1 && mockFaceReviewed)
+            let items: [[String: Any]] = hasEvent ? [["id": 1, "name": "示例照片1.jpg", "group": cursor == 0 ? "target" : mockFaceGroup, "thumbnail": mockImage.base64EncodedString(), "reviewable": true]] : []
+            return try json(["items": items, "next": cursor + items.count, "done": true])
+        case "face-review": mockFaceGroup = body?["group"] as? String ?? "review"; mockFaceReviewed = true; return try json(["ok": true])
         case "face-preview": return try json(["image": mockImage.base64EncodedString()])
         case "device-original":
             return try json(["total": mockImage.count, "data": mockImage.base64EncodedString(), "extension": ".png", "width": 1200, "height": 800])

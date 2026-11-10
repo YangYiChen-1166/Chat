@@ -77,11 +77,11 @@ struct FaceScreen: View {
                         Button("刷新人物") { Task { _ = await model.command("face-refresh") } }.disabled(model.state?.faceConfigured != true || model.state?.busy == true)
                         Button("移除密钥", role: .destructive) { showClear = true }.disabled(model.state?.faceConfigured != true)
                     }
-                    Picker("目标人物", selection: $person) { Text("请选择").tag(""); ForEach(model.state?.facePeople ?? []) { value in Text("\(value.name) · \(value.samples) 个样本").tag(value.id) } }
+                    Picker("目标人物", selection: $person) { Text("请选择").tag(""); ForEach(model.state?.facePeople ?? []) { value in Text("\(value.name) · \(value.samples) 个样本").tag(value.id) } }.accessibilityIdentifier("face-person")
                 }
                 Section("筛选") {
                     Text("已选择 \(model.selectedPhotos.count) 张照片").foregroundStyle(.secondary)
-                    Button("开始筛选已选照片") { Task { _ = await model.command("face-scan", body: ["ids": model.selectedPhotos.map(\.id), "person": person]) } }.disabled(person.isEmpty || model.selectedPhotos.isEmpty || model.state?.busy == true)
+                    Button("开始筛选已选照片") { Task { _ = await model.command("face-scan", body: ["ids": model.selectedPhotos.map(\.id), "person": person]) } }.disabled(person.isEmpty || model.selectedPhotos.isEmpty || model.state?.busy == true).accessibilityIdentifier("start-face")
                     if let scan = model.state?.faceScan {
                         Text("已处理 \(scan.processed) / \(scan.total) · 目标 \(scan.matched) · 非目标 \(scan.unmatched) · 待复核 \(scan.review) · 失败 \(scan.failed)").font(.footnote)
                         if !scan.done { Button("停止筛选", role: .destructive) { Task { _ = await model.command("cancel") } } }
@@ -134,7 +134,7 @@ struct FaceScreen: View {
                     Button("归为目标") { Task { await model.review(item, group: "target") } }
                     Button("归为非目标") { Task { await model.review(item, group: "other") } }
                     Button("待复核") { Task { await model.review(item, group: "review") } }
-                } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+                } label: { Image(systemName: "ellipsis.circle").font(.title3) }.accessibilityLabel("复核 \(item.name)").accessibilityIdentifier("review-face-\(item.id)")
             }
         }
     }

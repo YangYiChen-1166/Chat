@@ -94,13 +94,7 @@ struct FaceScreen: View {
                         if !items.isEmpty {
                             Section(groupName(group) + " · \(items.count)") {
                                 ForEach(items) { item in
-                                    HStack {
-                                        Button { itemPreview = item; Task { await loadFace(item) } } label: {
-                                            HStack { if let raw = item.thumbnail, let data = Data(base64Encoded: raw), let image = UIImage(data: data) { Image(uiImage: image).resizable().scaledToFill().frame(width: 52, height: 52).clipped().clipShape(RoundedRectangle(cornerRadius: 6)) }; VStack(alignment: .leading) { Text(item.name); if let error = item.error, !error.isEmpty { Text(error).font(.caption).foregroundStyle(.secondary) } } }
-                                        }.buttonStyle(.plain)
-                                        Spacer()
-                                        if item.reviewable { Menu { Button("归为目标") { Task { await model.review(item, group: "target") } }; Button("归为非目标") { Task { await model.review(item, group: "other") } }; Button("待复核") { Task { await model.review(item, group: "review") } } } label: { Image(systemName: "ellipsis.circle").font(.title3) } }
-                                    }
+                                    faceRow(item)
                                 }
                             }
                         }
@@ -118,6 +112,29 @@ struct FaceScreen: View {
         }
     }
     func groupName(_ group: String) -> String { switch group { case "target": return "目标"; case "review": return "待复核"; case "other": return "非目标"; default: return "失败" } }
+    @ViewBuilder func faceRow(_ item: FaceItem) -> some View {
+        HStack {
+            Button { itemPreview = item; Task { await loadFace(item) } } label: {
+                HStack {
+                    if let raw = item.thumbnail, let data = Data(base64Encoded: raw), let image = UIImage(data: data) {
+                        Image(uiImage: image).resizable().scaledToFill().frame(width: 52, height: 52).clipped().clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    VStack(alignment: .leading) {
+                        Text(item.name)
+                        if let message = item.error, !message.isEmpty { Text(message).font(.caption).foregroundStyle(.secondary) }
+                    }
+                }
+            }.buttonStyle(.plain)
+            Spacer()
+            if item.reviewable {
+                Menu {
+                    Button("归为目标") { Task { await model.review(item, group: "target") } }
+                    Button("归为非目标") { Task { await model.review(item, group: "other") } }
+                    Button("待复核") { Task { await model.review(item, group: "review") } }
+                } label: { Image(systemName: "ellipsis.circle").font(.title3) }
+            }
+        }
+    }
     func loadFace(_ item: FaceItem) async {
         guard let scan = model.state?.faceScan else { return }
         struct Result: Decodable { let image: String }

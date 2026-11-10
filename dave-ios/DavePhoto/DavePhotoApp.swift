@@ -51,15 +51,7 @@ struct WorkbenchRoot: View {
                     Button { showingWotu = true } label: { Label("读取喔图相册", systemImage: "link") }.disabled(blocked)
                 }
                 if let state = model.state {
-                    Section("人物与照片") {
-                        Picker("人物目录", selection: Binding(get: { state.person ?? "" }, set: { value in Task { await model.choosePerson(value) } })) {
-                            Text("请选择人物目录").tag("")
-                            ForEach(state.people) { person in Text("\(person.key) · \(person.count) 张").tag(person.key) }
-                        }.disabled(blocked || state.people.isEmpty)
-                        Picker("照片分类", selection: $model.category) { ForEach(model.categories, id: \.self) { Text($0).tag($0) } }.disabled(state.photos.isEmpty)
-                        NavigationLink { PhotoGrid(model: model, bridge: bridge) } label: { HStack { Label("浏览照片", systemImage: "photo.on.rectangle.angled"); Spacer(); Text("\(model.visible.count) 张").foregroundStyle(.secondary) } }.disabled(state.photos.isEmpty)
-                        HStack { Text("已选 \(model.selectedPhotos.count) 张"); Spacer(); Button("全选当前分类") { model.selected.formUnion(model.visible.map(\.id)) }.disabled(blocked || model.visible.isEmpty); Button("清除") { model.selected.removeAll() }.disabled(model.selected.isEmpty) }.font(.subheadline)
-                    }
+                    photoSection(state)
                     Section("保存与筛选") {
                         Toggle("允许保存小尺寸预览", isOn: $allowSmall)
                         Button { confirmingComputerSave = true } label: { Label("保存到电脑", systemImage: "desktopcomputer") }.disabled(blocked || model.selectedPhotos.isEmpty)
@@ -79,6 +71,28 @@ struct WorkbenchRoot: View {
             .sheet(isPresented: $showingMini) { if let id = model.selectedTarget { MiniWindow(model: model, targetID: id) } }
             .sheet(isPresented: $showingFaces) { FaceScreen(model: model, allowSmall: allowSmall) }
             .sheet(isPresented: $showingSettings) { SettingsScreen(model: model) }
+        }
+    }
+    private func photoSection(_ state: WorkState) -> some View {
+        let personSelection = Binding<String>(get: { state.person ?? "" }, set: { value in Task { await model.choosePerson(value) } })
+        return Section("人物与照片") {
+            Picker("人物目录", selection: personSelection) {
+                Text("请选择人物目录").tag("")
+                ForEach(state.people) { person in
+                    Text("\(person.key) · \(person.count) 张").tag(person.key)
+                }
+            }.disabled(blocked || state.people.isEmpty)
+            Picker("照片分类", selection: $model.category) {
+                ForEach(model.categories, id: \.self) { category in Text(category).tag(category) }
+            }.disabled(state.photos.isEmpty)
+            NavigationLink { PhotoGrid(model: model, bridge: bridge) } label: {
+                HStack { Label("浏览照片", systemImage: "photo.on.rectangle.angled"); Spacer(); Text("\(model.visible.count) 张").foregroundStyle(.secondary) }
+            }.disabled(state.photos.isEmpty)
+            HStack {
+                Text("已选 \(model.selectedPhotos.count) 张"); Spacer()
+                Button("全选当前分类") { model.selected.formUnion(model.visible.map(\.id)) }.disabled(blocked || model.visible.isEmpty)
+                Button("清除") { model.selected.removeAll() }.disabled(model.selected.isEmpty)
+            }.font(.subheadline)
         }
     }
 }

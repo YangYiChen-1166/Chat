@@ -8,6 +8,8 @@ targets:
     type: application
     platform: iOS
     sources: [MinimalChat]
+    scheme:
+      testTargets: [MinimalChatUITests]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.example.minimalchat
@@ -19,5 +21,16 @@ targets:
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: 用于选择聊天图片。
         SWIFT_VERSION: "5.0"
         TARGETED_DEVICE_FAMILY: "1"
+  MinimalChatUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [MinimalChatUITests]
+    dependencies:
+      - target: MinimalChat
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.minimalchat.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        SWIFT_VERSION: "5.0"
 
 

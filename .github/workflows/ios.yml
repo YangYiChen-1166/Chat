@@ -29,8 +29,7 @@ jobs:
           name: MinimalChat-unsigned
           path: iOS/MinimalChat-unsigned.ipa
       - name: Build and launch in iOS simulator
-        timeout-minutes: 12
-        continue-on-error: true
+        timeout-minutes: 20
         working-directory: iOS
         run: |
           xcodebuild -project MinimalChat.xcodeproj -scheme MinimalChat -configuration Debug -sdk iphonesimulator -derivedDataPath sim-build CODE_SIGNING_ALLOWED=NO build
@@ -41,7 +40,9 @@ jobs:
           xcrun simctl launch "$DEVICE" com.example.minimalchat
           sleep 5
           xcrun simctl io "$DEVICE" screenshot simulator.png
+          xcodebuild test -project MinimalChat.xcodeproj -scheme MinimalChat -destination "id=$DEVICE" -derivedDataPath sim-build -only-testing:MinimalChatUITests CODE_SIGNING_ALLOWED=NO
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: Simulator-screenshot
           path: iOS/simulator.png

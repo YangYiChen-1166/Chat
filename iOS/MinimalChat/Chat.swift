@@ -69,7 +69,7 @@ struct LoginView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section { TextField("用户名", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username); SecureField("密码", text: $password).textContentType(register ? .newPassword : .password) }
+                Section { TextField("用户名", text: $username).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username).accessibilityIdentifier("loginUsername"); SecureField("密码", text: $password).textContentType(register ? .newPassword : .password).accessibilityIdentifier("loginPassword") }
                 footer: { if register { Text("用户名为 3–24 位字母、数字或下划线，密码至少 10 位。请记住密码，当前版本暂不支持找回。") } }
                 Section { Button(register ? "创建账号" : "登录") { Task { await model.authenticate(username: username, password: password, register: register) } }.disabled(username.isEmpty || password.isEmpty || model.busy); Button(register ? "已有账号？登录" : "没有账号？注册") { register.toggle() } }
             }.navigationTitle(register ? "创建账号" : "登录")
@@ -141,7 +141,7 @@ struct ChatView: View {
             PhotosPicker(selection: $selected, matching: .images) { Image(systemName: "photo") }.disabled(sending || audio.recording).accessibilityLabel("选择图片")
             Button { Task { await toggleRecording() } } label: { Image(systemName: audio.recording ? "stop.circle.fill" : "mic") }.disabled(sending).accessibilityLabel(audio.recording ? "停止录音并发送" : "录制语音")
             if audio.recording { Text("录音中，点停止发送").font(.footnote).foregroundStyle(.secondary).frame(maxWidth: .infinity) }
-            else { TextField("消息", text: $text, axis: .vertical).lineLimit(1...4).textFieldStyle(.roundedBorder); Button { Task { await sendText() } } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }.disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("发送") }
+            else { TextField("消息", text: $text, axis: .vertical).lineLimit(1...4).textFieldStyle(.roundedBorder).accessibilityIdentifier("messageInput"); Button { Task { await sendText() } } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }.disabled(sending || text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("发送").accessibilityIdentifier("sendMessage") }
         }.padding(.horizontal).padding(.vertical, 10).background(.bar)
     }
     func refresh(silent: Bool = false) async { do { let result = try await model.api.decode(MessageList.self, "/messages/\(person.id)"); messages = result.messages; loading = false } catch { loading = false; if !silent { model.error = error.localizedDescription } } }

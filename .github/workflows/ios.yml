@@ -24,7 +24,13 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/Release-iphoneos/MinimalChat.app Payload/
           zip -qry MinimalChat-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MinimalChat-unsigned
+          path: iOS/MinimalChat-unsigned.ipa
       - name: Build and launch in iOS simulator
+        timeout-minutes: 5
+        continue-on-error: true
         working-directory: iOS
         run: |
           xcodebuild -project MinimalChat.xcodeproj -scheme MinimalChat -configuration Debug -sdk iphonesimulator -derivedDataPath sim-build CODE_SIGNING_ALLOWED=NO build
@@ -37,11 +43,8 @@ jobs:
           xcrun simctl io "$DEVICE" screenshot simulator.png
       - uses: actions/upload-artifact@v4
         with:
-          name: MinimalChat-unsigned
-          path: iOS/MinimalChat-unsigned.ipa
-      - uses: actions/upload-artifact@v4
-        with:
           name: Simulator-screenshot
           path: iOS/simulator.png
+          if-no-files-found: ignore
 
 

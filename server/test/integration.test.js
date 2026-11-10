@@ -29,6 +29,10 @@ test('registration, friends, text, media and access control', async () => {
   const messages=await call('/messages/'+alice.user.id,'GET',undefined,bob.token); assert.equal(messages.value.messages[0].body,'你好');
   const upload=await call('/media/'+bob.user.id+'/image','POST',new Uint8Array([1,2,3]),alice.token,'image/jpeg'); assert.equal(upload.status,201,JSON.stringify(upload.value));
   const media=await call('/media/'+upload.value.id,'GET',undefined,bob.token); assert.deepEqual([...media.value],[1,2,3]);
+  const voice=await call('/media/'+bob.user.id+'/audio','POST',new Uint8Array([4,5,6]),alice.token,'audio/mp4'); assert.equal(voice.status,201);
+  const voiceData=await call('/media/'+voice.value.id,'GET',undefined,bob.token); assert.deepEqual([...voiceData.value],[4,5,6]);
+  assert.equal((await call('/media/'+bob.user.id+'/image','POST',new Uint8Array([1]),alice.token,'text/plain')).status,415);
+  assert.equal((await call('/messages/'+bob.user.id,'POST',{text:'x'.repeat(4001)},alice.token)).status,400);
   assert.equal((await call('/media/'+upload.value.id,'GET',undefined,eve.token)).status,404);
   assert.equal((await call('/messages/'+bob.user.id,'GET',undefined,eve.token)).status,403);
   assert.equal((await call('/logout','POST',{},alice.token)).status,200);

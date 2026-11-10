@@ -1,24 +1,11 @@
 import SwiftUI
-
-@main
-struct MinimalChatApp: App {
+@main struct MinimalChatApp: App {
+    @StateObject private var model = AppModel()
     var body: some Scene {
-        WindowGroup { ContentView() }
-    }
-}
-
-struct ContentView: View {
-    var body: some View {
-        NavigationStack {
-            VStack(spacing: 12) {
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.system(size: 42))
-                    .foregroundStyle(.secondary)
-                Text("聊天正在准备中").font(.headline)
-                Text("登录和消息功能尚未接入。")
-                    .font(.subheadline).foregroundStyle(.secondary)
-            }
-            .navigationTitle("聊天")
+        WindowGroup {
+            Group { if model.restoring { ProgressView() } else if model.me == nil { LoginView() } else { FriendsView() } }
+                .environmentObject(model).task { await model.restore() }
+                .alert("提示", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) { Button("好", role: .cancel) { model.error = nil } } message: { Text(model.error ?? "") }
         }
     }
 }

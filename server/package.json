@@ -1,0 +1,1 @@
+{"name":"minimal-chat-server","private":true,"type":"module","scripts":{"test":"node --test test/*.test.js"},"devDependencies":{"@cloudflare/vite-plugin":"^2.0.0-beta.v.14","cf":"0.15.0","miniflare":"^4.20260730.0","vite":"^8.3.7"}}

@@ -88,18 +88,7 @@ struct FaceScreen: View {
                         if scan.done { Button("将目标照片保存到电脑") { Task { _ = await model.command("face-export", body: ["run": scan.run, "allowSmall": allowSmall]) } }.disabled(scan.matched == 0) }
                     }
                 }
-                if !model.faceItems.isEmpty {
-                    ForEach(["target", "review", "other", "error"], id: \.self) { group in
-                        let items = model.faceItems.values.filter { $0.group == group }.sorted { $0.name < $1.name }
-                        if !items.isEmpty {
-                            Section(groupName(group) + " · \(items.count)") {
-                                ForEach(items) { item in
-                                    faceRow(item)
-                                }
-                            }
-                        }
-                    }
-                }
+                faceGroups
                 Section("交给 LocalFace 录入") {
                     Picker("传输质量", selection: $quality) { Text("快速录入").tag("fast"); Text("原尺寸").tag("original") }
                     Picker("识别模型", selection: $recognitionModel) { Text("FaceRes").tag("faceres"); Text("SFace").tag("sface") }
@@ -112,6 +101,19 @@ struct FaceScreen: View {
         }
     }
     func groupName(_ group: String) -> String { switch group { case "target": return "目标"; case "review": return "待复核"; case "other": return "非目标"; default: return "失败" } }
+    private var faceGroups: some View {
+        ForEach(["target", "review", "other", "error"], id: \.self) { group in
+            faceSection(group)
+        }
+    }
+    @ViewBuilder private func faceSection(_ group: String) -> some View {
+        let items = model.faceItems.values.filter { $0.group == group }.sorted { $0.name < $1.name }
+        if !items.isEmpty {
+            Section("\(groupName(group)) · \(items.count)") {
+                ForEach(items) { item in faceRow(item) }
+            }
+        }
+    }
     @ViewBuilder func faceRow(_ item: FaceItem) -> some View {
         HStack {
             Button { itemPreview = item; Task { await loadFace(item) } } label: {

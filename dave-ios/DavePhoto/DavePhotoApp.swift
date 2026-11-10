@@ -34,22 +34,7 @@ struct WorkbenchRoot: View {
                     HStack { Circle().fill(bridge.connection == "电脑端已连接" ? .green : .orange).frame(width: 8, height: 8); Text(bridge.connection); Spacer(); if model.state?.busy == true { ProgressView() } }
                     if let state = model.state { Text(state.status).font(.footnote).foregroundStyle(.secondary); if state.canStop { Button("停止当前任务", role: .destructive) { Task { _ = await model.command("cancel") } } } }
                 } footer: { Text("读取微信相册需要电脑开机、联网，并运行大卫照片工作台。") }
-                Section("相册来源") {
-                    HStack {
-                        Picker("电脑窗口", selection: $model.selectedTarget) {
-                            Text("请选择窗口").tag(Int?.none)
-                            ForEach(model.targets) { target in Text(target.title).tag(Optional(target.id)) }
-                        }.disabled(blocked || model.targets.isEmpty)
-                        Button { Task { await model.refreshTargets() } } label: { Image(systemName: "arrow.clockwise") }.disabled(!bridge.connected).accessibilityLabel("刷新窗口")
-                    }
-                    HStack {
-                        Button("读取相册") { Task { await model.scan() } }.disabled(blocked || model.selectedTarget == nil)
-                        Spacer()
-                        Button("使用上次缓存") { Task { await model.scan(useCache: true) } }.disabled(blocked || model.selectedTarget == nil)
-                    }
-                    Button { showingMini = true } label: { Label("远程操作小程序", systemImage: "rectangle.on.rectangle") }.disabled(blocked || model.selectedTarget == nil)
-                    Button { showingWotu = true } label: { Label("读取喔图相册", systemImage: "link") }.disabled(blocked)
-                }
+                sourceSection
                 if let state = model.state {
                     photoSection(state)
                     Section("保存与筛选") {
@@ -57,6 +42,11 @@ struct WorkbenchRoot: View {
                         Button { confirmingComputerSave = true } label: { Label("保存到电脑", systemImage: "desktopcomputer") }.disabled(blocked || model.selectedPhotos.isEmpty)
                         Button { confirmingDeviceSave = true } label: { Label("保存到此设备的照片", systemImage: "square.and.arrow.down") }.disabled(blocked || model.selectedPhotos.isEmpty || model.saving)
                         if model.saving { HStack { ProgressView(); Text(model.savingStatus) }.font(.footnote) }
+                        if model.caching {
+                            HStack { ProgressView(); Text(model.cacheStatus); Spacer(); Button("停止") { model.cancelCaching() } }.font(.footnote)
+                        } else {
+                            Button { model.beginCaching() } label: { Label("预加载照片到此设备", systemImage: "arrow.down.circle") }.disabled(blocked || state.photos.isEmpty)
+                        }
                         Button { showingFaces = true } label: { Label("LocalFace 人脸筛选与交接", systemImage: "person.crop.rectangle.stack") }.disabled(!bridge.connected)
                     } footer: { Text("电脑端保存到：\(state.folder)\n照片可能是小尺寸或带水印的预览，不保证是原片。") }
                 }
@@ -71,6 +61,27 @@ struct WorkbenchRoot: View {
             .sheet(isPresented: $showingMini) { if let id = model.selectedTarget { MiniWindow(model: model, targetID: id) } }
             .sheet(isPresented: $showingFaces) { FaceScreen(model: model, allowSmall: allowSmall) }
             .sheet(isPresented: $showingSettings) { SettingsScreen(model: model) }
+        }
+    }
+    private var sourceSection: some View {
+        Section("相册来源") {
+            HStack {
+                Picker("电脑窗口", selection: $model.selectedTarget) {
+                    Text("请选择窗口").tag(nil as Int?)
+                    ForEach(model.targets) { target in
+                        Text(target.title).tag(target.id as Int?)
+                    }
+                }.disabled(blocked || model.targets.isEmpty)
+                Button { Task { await model.refreshTargets() } } label: { Image(systemName: "arrow.clockwise") }
+                    .disabled(!bridge.connected).accessibilityLabel("刷新窗口")
+            }
+            HStack {
+                Button("读取相册") { Task { await model.scan() } }.disabled(blocked || model.selectedTarget == nil)
+                Spacer()
+                Button("使用上次缓存") { Task { await model.scan(useCache: true) } }.disabled(blocked || model.selectedTarget == nil)
+            }
+            Button { showingMini = true } label: { Label("远程操作小程序", systemImage: "rectangle.on.rectangle") }.disabled(blocked || model.selectedTarget == nil)
+            Button { showingWotu = true } label: { Label("读取喔图相册", systemImage: "link") }.disabled(blocked)
         }
     }
     private func photoSection(_ state: WorkState) -> some View {
@@ -134,6 +145,7 @@ struct SettingsScreen: View {
         NavigationStack {
             List {
                 Section("电脑端保存位置") { Text(model.state?.folder ?? "未连接").textSelection(.enabled); Button("修改电脑端文件夹") { folder = model.state?.folder ?? ""; editFolder = true } }
+                Section("设备预览缓存") { Text("已使用 \(model.cacheSize / 1024 / 1024) MB，上限 128 MB"); Button("清理设备缓存", role: .destructive) { model.clearCache() }.disabled(model.caching) }
                 Section("任务记录") { if let log = model.state?.log, !log.isEmpty { ForEach(Array(log.enumerated()), id: \.offset) { _, line in Text(line).font(.footnote).textSelection(.enabled) } } else { Text("暂无记录").foregroundStyle(.secondary) } }
                 Section("连接说明") { Text("应用使用现有的大卫照片远程连接。电脑端需要保持运行，当前远程入口按现有配置开放访问。") }
             }.navigationTitle("设置").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }

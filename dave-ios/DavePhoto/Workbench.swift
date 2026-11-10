@@ -1,6 +1,7 @@
 import SwiftUI
 import Photos
 import UIKit
+import ImageIO
 
 @MainActor final class Workbench: ObservableObject {
     let bridge = PhotoBridge()
@@ -18,6 +19,11 @@ import UIKit
     @Published var faceItems: [Int: FaceItem] = [:]
     @Published var saving = false
     @Published var savingStatus = ""
+    @Published var caching = false
+    @Published var cacheStatus = ""
+    @Published var cacheSize = 0
+    private let cache = PreviewCache()
+    private var cacheTask: Task<Void, Never>?
     private var pollTask: Task<Void, Never>?
     private var refreshInFlight = false
     private var thumbQueue: [Int] = []
@@ -33,6 +39,7 @@ import UIKit
     var selectedPhotos: [PhotoItem] { (state?.photos ?? []).filter { selected.contains($0.id) } }
 
     func start() {
+        cacheSize = cache.used()
         bridge.start()
         guard pollTask == nil else { return }
         pollTask = Task { [weak self] in
@@ -79,6 +86,9 @@ import UIKit
     }
     func choosePerson(_ person: String) async { if await command("person", body: ["person": person]) { selected.removeAll(); category = "全部分类" } }
     func showPreview(_ item: PhotoItem) async {
+        if let cached = cache.read(item.cacheKey), let image = UIImage(data: cached) {
+            previewImage = image; previewName = item.name; return
+        }
         if let image = thumbnails[item.id] { previewImage = image; previewName = item.name }
         guard await command("preview", body: ["id": item.id]) else { return }
         let baseline = state?.preview?.revision
@@ -95,6 +105,7 @@ import UIKit
     }
     func loadThumbnail(_ item: PhotoItem) {
         guard thumbnails[item.id] == nil, !thumbQueue.contains(item.id) else { return }
+        if let data = cache.read(item.cacheKey), let image = makeThumbnail(data) { thumbnails[item.id] = image; return }
         thumbQueue.append(item.id)
         guard !thumbActive else { return }
         thumbActive = true
@@ -112,12 +123,69 @@ import UIKit
             } catch { if !bridge.connected { break } }
         }
     }
+    private func makeThumbnail(_ data: Data) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceCreateThumbnailWithTransform: true, kCGImageSourceThumbnailMaxPixelSize: 320]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: image)
+    }
     func refreshFaceResults() async {
         guard !faceRun.isEmpty, !facePolling else { return }; facePolling = true; defer { facePolling = false }
         do { let result = try await bridge.decode(FaceResultPage.self, "face-results", body: ["run": faceRun, "cursor": faceCursor]); for item in result.items { faceItems[item.id] = item }; faceCursor = result.next }
         catch { }
     }
     func review(_ item: FaceItem, group: String) async { guard let scan = state?.faceScan else { return }; _ = await command("face-review", body: ["run": scan.run, "id": item.id, "group": group]); await refreshFaceResults() }
+    func clearCache() {
+        guard !caching else { error = "请先停止预加载。"; return }
+        do { try cache.clear(); cacheSize = 0; thumbnails.removeAll(); notice = "设备预览缓存已清理。" }
+        catch { self.error = error.localizedDescription }
+    }
+    func beginCaching() {
+        guard !caching, let current = state, !current.photos.isEmpty else { return }
+        let photos = current.photos, generation = current.libraryGeneration, person = current.person
+        caching = true
+        cacheTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.caching = false; self.cacheStatus = ""; self.cacheTask = nil; self.cacheSize = self.cache.used() }
+            do {
+                let missing = photos.filter { self.cache.read($0.cacheKey) == nil }
+                if missing.isEmpty { self.notice = "当前照片的预览已在设备缓存中。"; return }
+                self.cacheStatus = "电脑正在准备 \(missing.count) 张预览"
+                guard await self.command("preload-previews", body: ["ids": missing.map(\.id)]) else { return }
+                var prepared = false
+                for _ in 0..<600 {
+                    try Task.checkCancellation()
+                    await self.refresh(silent: true)
+                    guard self.state?.libraryGeneration == generation, self.state?.person == person else { throw BridgeError(message: "相册已变化，请重新加载。") }
+                    if let progress = self.state?.preload, !progress.active, self.state?.busy == false, progress.total > 0 { prepared = true; break }
+                    if let progress = self.state?.preload { self.cacheStatus = "电脑准备预览 \(progress.done) / \(progress.total)" }
+                    try await Task.sleep(nanoseconds: 800_000_000)
+                }
+                guard prepared else { throw BridgeError(message: "电脑准备预览超时。") }
+                var completed = 0, failed = 0
+                for start in stride(from: 0, to: missing.count, by: 3) {
+                    try Task.checkCancellation()
+                    guard self.state?.libraryGeneration == generation, self.state?.person == person else { throw BridgeError(message: "相册已变化，请重新加载。") }
+                    let batch = Array(missing[start..<min(start + 3, missing.count)])
+                    let results = await withTaskGroup(of: (PhotoItem, Data?).self, returning: [(PhotoItem, Data?)].self) { group in
+                        for item in batch { group.addTask { let bytes = try? await self.bridge.request("cached-preview", body: ["id": item.id, "generation": generation]); return (item, bytes) } }
+                        var results: [(PhotoItem, Data?)] = []; for await value in group { results.append(value) }; return results
+                    }
+                    for (item, data) in results {
+                        if let data, let image = self.makeThumbnail(data) { try self.cache.write(data, key: item.cacheKey); self.thumbnails[item.id] = image; completed += 1 }
+                        else { failed += 1 }
+                    }
+                    self.cacheStatus = "传输到设备 \(completed + failed) / \(missing.count)"
+                }
+                self.notice = "预览缓存完成：成功 \(completed) 张，失败 \(failed) 张。"
+            } catch is CancellationError { self.notice = "已停止预加载。" }
+            catch { self.error = error.localizedDescription }
+        }
+    }
+    func cancelCaching() {
+        cacheTask?.cancel()
+        if state?.preload?.active == true { Task { _ = await command("cancel") } }
+    }
     func handoff(person: String, fast: Bool, model: String) async -> URL? {
         guard !selectedPhotos.isEmpty, selectedPhotos.count <= 50 else { error = "请选择 1 到 50 张照片。"; return nil }
         do {

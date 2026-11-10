@@ -1,0 +1,21 @@
+name: DavePhoto
+options:
+  bundleIdPrefix: com.example
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  DavePhoto:
+    type: application
+    platform: iOS
+    sources: [DavePhoto]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.davephoto
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        INFOPLIST_KEY_CFBundleDisplayName: 大卫照片
+        INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription: 将选中的照片保存到照片图库。
+        SWIFT_VERSION: "5.0"
+        TARGETED_DEVICE_FAMILY: "1,2"
+

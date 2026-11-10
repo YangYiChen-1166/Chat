@@ -1,0 +1,49 @@
+name: DavePhoto iOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [dave-photo-native-ios]
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install XcodeGen
+        run: brew install xcodegen
+      - name: Generate Xcode project
+        working-directory: dave-ios
+        run: xcodegen generate
+      - name: Build unsigned iOS app
+        working-directory: dave-ios
+        run: xcodebuild -project DavePhoto.xcodeproj -scheme DavePhoto -configuration Release -sdk iphoneos -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+      - name: Package IPA
+        working-directory: dave-ios
+        run: |
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/DavePhoto.app Payload/
+          zip -qry DavePhoto-unsigned.ipa Payload
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DavePhoto-unsigned
+          path: dave-ios/DavePhoto-unsigned.ipa
+      - name: Build and launch simulator app
+        timeout-minutes: 15
+        working-directory: dave-ios
+        run: |
+          xcodebuild -project DavePhoto.xcodeproj -scheme DavePhoto -configuration Debug -sdk iphonesimulator -derivedDataPath sim-build CODE_SIGNING_ALLOWED=NO build
+          DEVICE=$(xcrun simctl list devices available -j | python3 -c 'import json,sys; d=json.load(sys.stdin); print(next(x["udid"] for group in d["devices"].values() for x in group if x["name"].startswith("iPhone") and x["isAvailable"]))')
+          xcrun simctl boot "$DEVICE" || true
+          xcrun simctl bootstatus "$DEVICE" -b
+          xcrun simctl install "$DEVICE" sim-build/Build/Products/Debug-iphonesimulator/DavePhoto.app
+          xcrun simctl launch "$DEVICE" com.example.davephoto
+          sleep 8
+          xcrun simctl io "$DEVICE" screenshot simulator.png
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: DavePhoto-simulator
+          path: dave-ios/simulator.png
+          if-no-files-found: ignore
+
